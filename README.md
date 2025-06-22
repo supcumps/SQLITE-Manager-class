@@ -38,8 +38,7 @@
 
 ## 📁 Installation
 
-1. Unzip `SQLiteManager_Class.zip`
-2. Drag `SQLiteManager.xojo_class` into your Xojo project navigator
+
 
 ## 🚀 Usage
 
