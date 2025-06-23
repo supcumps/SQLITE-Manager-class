@@ -21,7 +21,8 @@ Protected Class SQLiteManager
 		    Wend
 		    rs.Close
 		    
-		    ' ➕ Safe to add the column
+		    '//➕ Safe to add the column
+		    
 		    sql = "ALTER TABLE '" + tableName + "' ADD COLUMN " + columnDef
 		    db.ExecuteSQL(sql)
 		    
@@ -37,18 +38,50 @@ Protected Class SQLiteManager
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Connect() As Boolean
+		  ' Connect to existing database
+		  //Public Function Connect() As Boolean
+		  Try
+		    If db = Nil Then
+		      If dbFile = Nil Then
+		        MessageBox("❌ Database file not set.")
+		        Return False
+		      End If
+		      
+		      db = New SQLiteDatabase
+		      db.DatabaseFile = dbFile
+		    End If
+		    
+		    If Not db.isConnected Then
+		      db.Connect
+		    End If
+		    
+		    Return True
+		    
+		  Catch e As DatabaseException
+		    MessageBox("❌ Connection Error: " + e.Message)
+		    Return False
+		  End Try
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub Constructor()
-		  //Sub Constructor()
+		  ' Constructor: do nothing; call CreateDatabase() separately
+		  
 		  db = Nil
 		  dbFile = Nil
+		  
 		  
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function CountRecords(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As Integer
-		  //Public Function CountRecords(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As Integer
+		  
 		  Try
+		    
 		    ' Build count SQL
 		    Var sql As String = "SELECT COUNT(*) FROM '" + tableName + "'"
 		    If whereClause <> "" Then sql = sql + " WHERE " + whereClause
@@ -72,31 +105,52 @@ Protected Class SQLiteManager
 
 	#tag Method, Flags = &h0
 		Function CreateDatabase(dbName As String) As Boolean
-		  // Function CreateDatabase(dbName As String) As Boolean
+		  ' Creates a new SQLite database file in ApplicationData if it doesn't exist,
+		  ' or connects to it if it already exists.
+		  // Public Function CreateDatabase(dbName As String) As Boolean
 		  Try
+		    ' Step 1: Make sure the ApplicationData folder is available
+		    If SpecialFolder.ApplicationData = Nil Then
+		      MessageBox("❌ ApplicationData folder not available on this platform.")
+		      Return False
+		    End If
+		    
+		    ' Step 2: Construct the file path for the database
 		    dbFile = SpecialFolder.ApplicationData.Child(dbName)
+		    
+		    ' Step 3: Initialize a new SQLiteDatabase object
 		    db = New SQLiteDatabase
 		    db.DatabaseFile = dbFile
 		    
-		    If Not dbFile.Exists Then
-		      If db.CreateDatabaseFile Then
-		        Return True
-		      Else
-		        Return False
-		      End If
-		    Else
+		    ' Step 4: Check if the database file already exists
+		    If dbFile.Exists Then
+		      ' ✅ File exists — try connecting
 		      Try
 		        db.Connect
-		        MessageBox("Database file is located at: " + db.DatabaseFile.ShellPath)
+		        LogMessage("✅ Connected to existing database at: " + dbFile.NativePath)
 		        Return True
 		      Catch connErr As DatabaseException
-		        MessageBox("❌ Connection error: " + connErr.Message)
+		        MessageBox("❌ Could not connect to existing database: " + connErr.Message)
 		        Return False
 		      End Try
+		      
+		    Else
+		      ' 🚧 File does not exist — try to create a new one
+		      If db.CreateDatabaseFile Then
+		        LogMessage("✅ New database created at: " + dbFile.NativePath)
+		        Return True
+		      Else
+		        MessageBox("❌ Could not create database file.")
+		        Return False
+		      End If
 		    End If
+		    
+		    ' Step 5: Handle file system-related errors
 		  Catch e As IOException
-		    MessageBox("❌ IO Error: " + e.Message)
+		    MessageBox("❌ IO Error while creating or accessing database: " + e.Message)
 		    Return False
+		    
+		    ' Step 6: Handle unexpected runtime errors
 		  Catch e As RuntimeException
 		    MessageBox("❌ Runtime Error: " + e.Message)
 		    Return False
@@ -107,28 +161,47 @@ Protected Class SQLiteManager
 
 	#tag Method, Flags = &h0
 		Function CreateTableIfNotExists(tableName As String, fieldDefs As String) As Boolean
-		  //Function CreateTableIfNotExists(tableName As String, fieldDefs As String) As Boolean
+		  ' Create a table if it doesn't already exist
+		  //Public Function CreateTableIfNotExists(tableName As String, fieldDefs As String) As Boolean
 		  Try
+		    If Not Connect Then Return False
+		    
 		    Var sql As String = "CREATE TABLE IF NOT EXISTS '" + tableName + "' (" + fieldDefs + ")"
 		    db.ExecuteSQL(sql)
 		    Return True
+		    
 		  Catch e As DatabaseException
 		    MessageBox("❌ SQL Error: " + e.Message)
 		    Return False
 		  End Try
+		  
 		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function DeleteRecord(tableName As String, whereClause As String, whereValues() As Variant) As Boolean
+		  ' Deletes one or more rows from a specified table based on a WHERE clause and parameter values
 		  //Public Function DeleteRecord(tableName As String, whereClause As String, whereValues() As Variant) As Boolean
+		  '
+		   // Step 1: Ensure we are connected To the database
+		  If Not Connect Then Return False
+		  
 		  Try
-		    ' Build and run delete statement
+		    ' Step 2: Build the DELETE SQL statement
+		    ' WARNING: Table name is inserted directly — make sure it comes from a trusted source
+		    ' The WHERE clause uses placeholders (e.g., "ID = ? AND Name = ?")
 		    Var sql As String = "DELETE FROM '" + tableName + "' WHERE " + whereClause
+		    
+		    ' Step 3: Execute the statement with parameter substitution
+		    ' whereValues() is an array of values that correspond to each "?" in whereClause
 		    db.ExecuteSQL(sql, whereValues)
+		    
+		    ' Step 4: Indicate success
 		    Return True
+		    
 		  Catch e As DatabaseException
+		    ' Step 5: Show error message if something goes wrong
 		    MessageBox("❌ Delete error: " + e.Message)
 		    Return False
 		  End Try
@@ -153,127 +226,157 @@ Protected Class SQLiteManager
 
 	#tag Method, Flags = &h0
 		Function ExportAndSaveCSV(tableName As String) As Boolean
+		  ' Exports the contents of the specified table as CSV and saves it to disk
+		  ' Works across Desktop, iOS, and Android
 		  //Public Function ExportAndSaveCSV(tableName As String) As Boolean
+		  
+		  If Not Connect Then Return False
 		  LogMessage("Starting CSV export for table: " + tableName)
+		  
 		  Try
-		    ' Step 1: Generate the CSV data as a String from the given table name.
+		    ' Step 1: Make sure the table exists before trying to export it
+		    If Not TableExists(tableName) Then
+		      MessageBox("❌ The table '" + tableName + "' does not exist.")
+		      Return False
+		    End If
+		    
+		    ' Step 2: Generate the CSV content from the table
 		    Var csv As String = ExportTableAsCSV(tableName)
 		    
-		    ' Step 2: Declare the FolderItem that will represent the file to save to.
+		    ' Step 3: Declare a FolderItem to represent the output file
 		    Var file As FolderItem
 		    
-		    ' Step 3: Platform-specific handling
+		    ' Step 4: Platform-specific handling
 		    #If TargetDesktop Then
-		      ' DESKTOP (macOS, Windows, Linux):
-		      ' Prompt the user with a Save File dialog to choose a file location and name.
+		      ' ----- macOS / Windows / Linux -----
+		      ' Prompt user to choose where to save the file
 		      file = FolderItem.ShowSaveFileDialog("text/csv", tableName + ".csv")
 		      
-		      ' If the user cancels the dialog, exit the function with False.
+		      ' If user cancels the save dialog, exit the function
 		      If file = Nil Then
-		        MessageBox("❗Save cancelled.")
+		        MessageBox("❗ Save cancelled.")
 		        Return False
 		      End If
 		      
-		      ' Check if a file with the selected name already exists at that location.
-		      Var existing As FolderItem = file.Parent.Child(file.Name)
-		      If existing.Exists Then
-		        ' Ask the user whether they want to overwrite the existing file.
+		      ' Check if file already exists and ask user for confirmation
+		      If file.Exists Then
 		        Var d As New MessageDialog
 		        d.Message = "A file named '" + file.Name + "' already exists."
 		        d.Explanation = "Do you want to overwrite it?"
 		        d.ActionButton.Caption = "Overwrite"
 		        d.CancelButton.Visible = True
 		        d.CancelButton.Caption = "Cancel"
-		        
-		        ' Show the modal dialog and get the user's response.
 		        Var result As MessageDialogButton = d.ShowModal
+		        
+		        ' User clicked Cancel
 		        If result <> d.ActionButton Then
-		          ' User chose Cancel, so we exit without saving.
 		          Return False
 		        End If
 		      End If
 		      
 		    #ElseIf TargetiOS Or TargetAndroid Then
-		      ' MOBILE (iOS or Android):
-		      ' Save the file automatically into the app's Documents folder.
-		      ' FolderItem.ShowSaveFileDialog is not available on mobile.
+		      ' ----- iOS / Android -----
+		      ' Automatically save to the app's Documents folder
 		      file = SpecialFolder.Documents.Child(tableName + ".csv")
 		      
-		      ' If a file already exists with that name, remove it to allow overwrite.
+		      ' Remove existing file to avoid overwrite conflict
 		      If file.Exists Then
 		        file.Remove
 		      End If
 		      
 		    #Else
-		      ' OTHER PLATFORMS (fallback, e.g., Linux console app):
-		      ' Default to saving in the Documents folder with fixed name.
+		      ' ----- Other Platforms (e.g. Linux console) -----
+		      ' Default to Documents folder
 		      file = SpecialFolder.Documents.Child(tableName + ".csv")
 		      
-		      ' Remove any existing file with the same name to avoid errors on create.
 		      If file.Exists Then
 		        file.Remove
 		      End If
 		    #EndIf
 		    
-		    ' Step 4: Create a new text file (overwriting if needed) and write the CSV data to it.
+		    ' Step 5: Write the CSV data to the chosen file
 		    Var output As TextOutputStream = TextOutputStream.Create(file)
 		    output.Write(csv)
 		    output.Close
 		    
-		    ' Step 5: Notify the user that the file has been saved successfully.
+		    ' Step 6: Notify the user of success
 		    MessageBox("✅ CSV file saved to: " + file.NativePath)
-		    
-		    ' Step 6: Return True to indicate success.
 		    Return True
 		    
-		    ' Step 7: Handle file-related errors (e.g., permission denied, disk full).
 		  Catch e As IOException
+		    ' Handle file write errors (e.g., permission denied)
 		    MessageBox("❌ File write error: " + e.Message)
 		    Return False
 		    
-		    ' Step 8: Catch other unexpected runtime exceptions and display the error message.
 		  Catch e As RuntimeException
+		    ' Handle any other unexpected runtime errors
 		    MessageBox("❌ Unexpected error: " + e.Message)
 		    Return False
 		  End Try
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function ExportTableAsCSV(tableName As String) As String
-		  //Function ExportTableAsCSV(tableName As String) As String
-		  // returns a string ith the data
+		  // Public Function ExportTableAsCSV(tableName As String) As String
 		  Try
-		    Var rs As RowSet = db.SelectSQL("SELECT * FROM '" + tableName + "'")
+		    ' Make sure we're connected to the database
+		    If Not Connect Then Return ""
+		    
+		    ' Query all rows from the specified table
+		    Var rs As RowSet = db.SelectSQL("SELECT * FROM " + tableName)
+		    
+		    ' String to hold the final CSV
 		    Var csv As String
 		    
+		    ' --- Step 1: Add the header row (column names) ---
 		    For i As Integer = 0 To rs.ColumnCount - 1
-		      csv = csv + rs.ColumnAt(i).Name
-		      If i < rs.ColumnCount - 1 Then csv = csv + ","
+		      csv = csv + rs.ColumnAt(i).Name ' Get column name by index
+		      If i < rs.ColumnCount - 1 Then
+		        csv = csv + ","
+		      End If
 		    Next
 		    csv = csv + EndOfLine
 		    
+		    ' --- Step 2: Add each row of data ---
 		    While Not rs.AfterLastRow
 		      For i As Integer = 0 To rs.ColumnCount - 1
-		        csv = csv + rs.ColumnAt(i).StringValue
-		        If i < rs.ColumnCount - 1 Then csv = csv + ","
+		        ' Get column name
+		        Var colName As String = rs.ColumnAt(i).Name
+		        
+		        ' Get the value in the current row for that column
+		        Var cellValue As String = rs.Column(colName).StringValue
+		        
+		        ' Append value to CSV
+		        csv = csv + cellValue
+		        
+		        If i < rs.ColumnCount - 1 Then
+		          csv = csv + ","
+		        End If
 		      Next
 		      csv = csv + EndOfLine
 		      rs.MoveToNextRow
 		    Wend
 		    
+		    ' Return the completed CSV content
 		    Return csv
+		    
 		  Catch e As DatabaseException
+		    ' Show any SQL/database error
 		    MessageBox("❌ Export CSV error: " + e.Message)
 		    Return ""
 		  End Try
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function ExportTableAsJSON(tableName As String) As String
 		  //Public Function ExportTableAsJSON(tableName As String) As String
+		  
 		  Try
+		    If Not Connect Then Return ""
 		    Var rs As RowSet = db.SelectSQL("SELECT * FROM '" + tableName + "'")
 		    Var jArray As New JSONItem
 		    While Not rs.AfterLastRow
@@ -315,8 +418,11 @@ Protected Class SQLiteManager
 
 	#tag Method, Flags = &h0
 		Function InsertRecord(tableName As String, data As Dictionary) As Boolean
-		  //Function InsertRecord(tableName As String, data As Dictionary) As Boolean
+		   ' Insert a record from a Dictionary
+		  //Public Function InsertRecord(tableName As String, data As Dictionary) As Boolean
 		  Try
+		    If Not Connect Then Return False
+		    
 		    Var keys() As String
 		    Var placeholders() As String
 		    Var values() As Variant
@@ -330,22 +436,48 @@ Protected Class SQLiteManager
 		    Var sql As String = "INSERT INTO '" + tableName + "' (" + String.FromArray(keys, ", ") + ") VALUES (" + String.FromArray(placeholders, ", ") + ")"
 		    db.ExecuteSQL(sql, values)
 		    Return True
+		    
 		  Catch e As DatabaseException
 		    MessageBox("❌ Insert error: " + e.Message)
 		    Return False
 		  End Try
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RecordExists(tableName As String, whereClause As String, whereValues() As Variant) As Boolean
+		  ' Checks whether a record matching a WHERE clause exists in the given table
+		  //Public Function RecordExists(tableName As String, whereClause As String, whereValues() As Variant) As Boolean
+		  If Not Connect Then Return False
+		  
+		  Try
+		    ' Use a SELECT COUNT(*) to check if any matching records exist
+		    Var sql As String = "SELECT COUNT(*) FROM '" + tableName + "' WHERE " + whereClause
+		    Var rs As RowSet = db.SelectSQL(sql, whereValues)
+		    
+		    ' If at least one row matches, return True
+		    Return rs.ColumnAt(0).IntegerValue > 0
+		    
+		  Catch e As DatabaseException
+		    MessageBox("❌ RecordExists error: " + e.Message)
+		    Return False
+		  End Try
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function TableExists(tableName As String) As Boolean
+		  ' Checks if a table exists in the connected SQLite database
 		  //Public Function TableExists(tableName As String) As Boolean
+		  If Not Connect Then Return False
+		  
 		  Try
-		    ' Query sqlite_master table for presence of the table
-		    Var rs As RowSet = db.SelectSQL("SELECT name FROM sqlite_master WHERE type='table' AND name=?", tableName)
+		    Var rs As RowSet = db.SelectSQL("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", tableName)
 		    Return Not rs.AfterLastRow
 		  Catch e As DatabaseException
-		    MessageBox("❌ Table exists check failed: " + e.Message)
+		    MessageBox("❌ TableExists check error: " + e.Message)
 		    Return False
 		  End Try
 		  
@@ -354,63 +486,50 @@ Protected Class SQLiteManager
 
 	#tag Method, Flags = &h0
 		Function UpdateSingleRecord(tableName As String, data As Dictionary, whereColumn As String, whereValue As String) As boolean
-		  //Public Function UpdateSingleRecord(tableName As String, data As Dictionary, whereColumn As String, whereValue As String) As Boolean
+		  // Updates a single record in the specified table using a WHERE match on one column.
+		  ' Parameters:
+		  ' - tableName: The name of the table (e.g., "People")
+		  ' - data: A Dictionary of column names and new values to set
+		  ' - whereColumn: The column to match (e.g., "ID")
+		  ' - whereValue: The value to match in whereColumn (e.g., "1")
+		  // Public Function UpdateSingleRecord(tableName As String, data As Dictionary, whereColumn As String, whereValue As Variant) As Boolean
+		  If Not Connect Then Return False
+		  
 		  Try
-		    Var updates() As String     ' Will hold column = ? expressions
-		    Var values() As String      ' Will hold values for binding
+		    Var updates() As String         ' Holds the "column = ?" pairs
+		    Var values() As Variant         ' Holds values to bind to the placeholders
 		    
-		    ' Build the SET clause and collect values
+		    ' Build SET clause from dictionary
 		    For Each key As String In data.Keys
-		      updates.Add(key + " = ?")
-		      values.Add(data.Value(key))
+		      updates.Add("[" + key + "] = ?")        ' Use square brackets for SQL safety (avoids keyword issues)
+		      values.Add(data.Value(key))             ' Add the value to the bind array
 		    Next
 		    
-		    ' Add the WHERE match value at the end
+		    ' Add WHERE value at the end (for the final "?" in the WHERE clause)
 		    values.Add(whereValue)
 		    
-		    ' Final SQL string (e.g. UPDATE People SET age = ?, email = ? WHERE ID = ?)
+		    ' Build the full SQL UPDATE command
 		    Var sql As String = "UPDATE [" + tableName + "] SET " + String.FromArray(updates, ", ") + " WHERE [" + whereColumn + "] = ?"
 		    
-		    ' Execute with bound values
-		    Select Case values.Count
-		    Case 1
-		      db.ExecuteSQL(sql, values(0))
-		    Case 2
-		      db.ExecuteSQL(sql, values(0), values(1))
-		    Case 3
-		      db.ExecuteSQL(sql, values(0), values(1), values(2))
-		    Case 4
-		      db.ExecuteSQL(sql, values(0), values(1), values(2), values(3))
-		    Else
-		      MessageBox("❌ Too many fields to update (max 4 supported)")
-		      Return False
-		    End Select
+		    ' Execute the SQL with all collected values bound to placeholders
+		    db.ExecuteSQL(sql, values)
 		    
+		    ' If no error occurred, return success
 		    Return True
 		    
 		  Catch e As DatabaseException
+		    ' Handle any SQL error gracefully
 		    MessageBox("❌ Update error: " + e.Message)
 		    Return False
 		  End Try
 		  
-		  
-		  //======= USAGE ========
-		  '
-		  'Var changes As New Dictionary
-		  'changes.Value("email") = "updated@example.com"
-		  'changes.Value("age") = "45"
-		  '
-		  'If manager.UpdateSingleRecord("People", changes, "ID", "1") Then
-		  'MessageBox("✅ Person updated")
-		  'Else
-		  'MessageBox("❌ Update failed")
-		  'End If
+		  //========= see call  button for example usage
 		End Function
 	#tag EndMethod
 
 
-	#tag Property, Flags = &h0
-		db As SQLiteDatabase
+	#tag Property, Flags = &h21
+		Private db As SQLiteDatabase
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
@@ -456,22 +575,6 @@ Protected Class SQLiteManager
 			Visible=true
 			Group="Position"
 			InitialValue="0"
-			Type="Integer"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="dbFile"
-			Visible=false
-			Group="Behavior"
-			InitialValue=""
-			Type="Integer"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="db"
-			Visible=false
-			Group="Behavior"
-			InitialValue=""
 			Type="Integer"
 			EditorType=""
 		#tag EndViewProperty

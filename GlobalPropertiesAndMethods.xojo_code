@@ -1,5 +1,5 @@
 #tag Module
-Protected Module Globals
+Protected Module GlobalPropertiesAndMethods
 	#tag Method, Flags = &h0
 		Sub LogMessage(msg As String)
 		  Try
