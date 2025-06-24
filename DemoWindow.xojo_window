@@ -21,7 +21,7 @@ Begin DesktopWindow DemoWindow
    MinimumHeight   =   64
    MinimumWidth    =   64
    Resizeable      =   True
-   Title           =   "Demonstration of SQLiteApp.manager class"
+   Title           =   "Demonstration of SQLiteManagerClass Functions"
    Type            =   0
    Visible         =   True
    Width           =   600
@@ -922,7 +922,7 @@ End
 
 #tag WindowCode
 	#tag Property, Flags = &h0
-		manager As SQLiteManager
+		manager As SQLiteManagerClass
 	#tag EndProperty
 
 
