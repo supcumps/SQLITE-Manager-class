@@ -1,5 +1,5 @@
 #tag Class
-Protected Class SQLiteManager
+Protected Class SQLiteManagerClass
 	#tag Method, Flags = &h0
 		Function AddColumn(tableName As String, columnDef As String) As Boolean
 		  // Public Function AddColumn(tableName As String, columnDef As String) As Boolean

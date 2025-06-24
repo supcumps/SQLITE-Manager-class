@@ -3,13 +3,13 @@ Protected Class App
 Inherits DesktopApplication
 	#tag Event
 		Sub Opening()
-		  Manager = New SQLiteManager
+		  Manager = New SQLiteManagerClass
 		End Sub
 	#tag EndEvent
 
 
 	#tag Property, Flags = &h0
-		Manager As SQLiteManager
+		Manager As SQLiteManagerClass
 	#tag EndProperty
 
 
