@@ -2,25 +2,31 @@
 Protected Module GlobalPropertiesAndMethods
 	#tag Method, Flags = &h0
 		Sub LogMessage(msg As String)
-		  Try
-		    ' Get the log file in the Documents folder
-		    Var logFile As FolderItem = SpecialFolder.Documents.Child("log.txt")
-		    
-		    ' Open or create the file for appending
-		    Var stream As TextOutputStream
-		    If logFile.Exists Then
-		      stream = TextOutputStream.Append(logFile)
-		    Else
-		      stream = TextOutputStream.Create(logFile)
-		    End If
-		    
-		    ' Write message with timestamp
-		    stream.WriteLine(DateTime.Now.ToString + " | " + msg)
-		    stream.Close
-		    
-		  Catch e As IOException
-		    ' If logging fails, silently ignore (to avoid recursive errors)
-		  End Try
+		  ' Logs a message to a file only when running in the Xojo IDE (debug mode)
+		  // Sub LogMessage(msg As String)
+		  #If DebugBuild Then
+		    Try
+		      ' Step 1: Get the log file path in Documents
+		      Var logFile As FolderItem = SpecialFolder.Documents.Child("log.txt")
+		      
+		      ' Step 2: Open or create the log file for appending
+		      Var stream As TextOutputStream
+		      If logFile.Exists Then
+		        stream = TextOutputStream.Append(logFile)
+		      Else
+		        stream = TextOutputStream.Create(logFile)
+		      End If
+		      
+		      ' Step 3: Write timestamped log entry
+		      stream.WriteLine(DateTime.Now.ToString(Locale.Current) + " | " + msg)
+		      stream.Close
+		      
+		    Catch e As IOException
+		      ' Optional: silently fail or write to IDE debug output
+		      System.DebugLog("Logging failed: " + e.Message)
+		    End Try
+		  #EndIf
+		  
 		End Sub
 	#tag EndMethod
 

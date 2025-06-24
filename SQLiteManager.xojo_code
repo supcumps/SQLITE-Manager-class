@@ -4,6 +4,8 @@ Protected Class SQLiteManager
 		Function AddColumn(tableName As String, columnDef As String) As Boolean
 		  // Public Function AddColumn(tableName As String, columnDef As String) As Boolean
 		  Try
+		    If Not Connect Then Return False
+		    
 		    ' 🧠 Extract column name from definition (assumes format: "email TEXT", etc.)
 		    Var columnName As String = columnDef.NthField(" ", 1).Trim
 		    
@@ -81,7 +83,7 @@ Protected Class SQLiteManager
 		Function CountRecords(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As Integer
 		  
 		  Try
-		    
+		    If Not Connect Then Return 0
 		    ' Build count SQL
 		    Var sql As String = "SELECT COUNT(*) FROM '" + tableName + "'"
 		    If whereClause <> "" Then sql = sql + " WHERE " + whereClause
@@ -109,6 +111,7 @@ Protected Class SQLiteManager
 		  ' or connects to it if it already exists.
 		  // Public Function CreateDatabase(dbName As String) As Boolean
 		  Try
+		    
 		    ' Step 1: Make sure the ApplicationData folder is available
 		    If SpecialFolder.ApplicationData = Nil Then
 		      MessageBox("❌ ApplicationData folder not available on this platform.")
@@ -184,7 +187,7 @@ Protected Class SQLiteManager
 		  ' Deletes one or more rows from a specified table based on a WHERE clause and parameter values
 		  //Public Function DeleteRecord(tableName As String, whereClause As String, whereValues() As Variant) As Boolean
 		  '
-		   // Step 1: Ensure we are connected To the database
+		  // Step 1: Ensure we are connected To the database
 		  If Not Connect Then Return False
 		  
 		  Try
@@ -214,6 +217,8 @@ Protected Class SQLiteManager
 		  '=== Delete Table ===
 		  //Public Function DropTable(tableName As String) As Boolean
 		  Try
+		    If Not Connect Then Return False
+		    
 		    db.ExecuteSQL("DROP TABLE IF EXISTS '" + tableName + "'") ' Safely drop if exists
 		    Return True
 		  Catch e As DatabaseException
@@ -377,6 +382,7 @@ Protected Class SQLiteManager
 		  
 		  Try
 		    If Not Connect Then Return ""
+		    
 		    Var rs As RowSet = db.SelectSQL("SELECT * FROM '" + tableName + "'")
 		    Var jArray As New JSONItem
 		    While Not rs.AfterLastRow
@@ -397,28 +403,59 @@ Protected Class SQLiteManager
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function GetRowSet(tableName As String, whereClause As String = "", whereValue As String = "") As RowSet
+		Function GetRowSet(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As RowSet
+		  //Public Function GetRowSet(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As RowSet
+		  'Try
+		  '
+		  '' Build select statement with optional WHERE clause
+		  'Var sql As String = "SELECT * FROM [" + tableName + "]"
+		  'If whereClause <> "" Then sql = sql + " WHERE " + whereClause
+		  'If whereValue.Trim = "" Then
+		  'Return db.SelectSQL(sql)
+		  'Else
+		  'Return db.SelectSQL(sql, whereValue)
+		  'End If
+		  'Catch e As DatabaseException
+		  'MessageBox("❌ Select error: " + e.Message)
+		  'Return Nil
+		  'End Try
+		  
+		  
+		  ' Retrieves a RowSet from the specified table with an optional WHERE clause and bind values.
+		  ' Returns Nil if the query fails or the database isn't connected.
 		  //Public Function GetRowSet(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As RowSet
 		  Try
-		    ' Build select statement with optional WHERE clause
+		    ' Step 1: Check if the database is initialized and connected
+		    If db = Nil Or Not db.IsConnected Then
+		      MessageBox("❌ Database is not connected.")
+		      Return Nil
+		    End If
+		    
+		    ' Step 2: Construct SQL statement
 		    Var sql As String = "SELECT * FROM [" + tableName + "]"
-		    If whereClause <> "" Then sql = sql + " WHERE " + whereClause
-		    If whereValue.Trim = "" Then
+		    If whereClause.Trim <> "" Then
+		      sql = sql + " WHERE " + whereClause
+		    End If
+		    
+		    ' Step 3: Execute query with or without bound parameters
+		    If whereValues = Nil Or whereValues.Count = 0 Then
 		      Return db.SelectSQL(sql)
 		    Else
-		      Return db.SelectSQL(sql, whereValue)
+		      Return db.SelectSQL(sql, whereValues)
 		    End If
+		    
 		  Catch e As DatabaseException
+		    ' Step 4: Catch and report database errors
 		    MessageBox("❌ Select error: " + e.Message)
 		    Return Nil
-		  end try
+		  End Try
 		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function InsertRecord(tableName As String, data As Dictionary) As Boolean
-		   ' Insert a record from a Dictionary
+		  ' Insert a record from a Dictionary
 		  //Public Function InsertRecord(tableName As String, data As Dictionary) As Boolean
 		  Try
 		    If Not Connect Then Return False
@@ -471,9 +508,9 @@ Protected Class SQLiteManager
 		Function TableExists(tableName As String) As Boolean
 		  ' Checks if a table exists in the connected SQLite database
 		  //Public Function TableExists(tableName As String) As Boolean
-		  If Not Connect Then Return False
 		  
 		  Try
+		    If Not Connect Then Return False
 		    Var rs As RowSet = db.SelectSQL("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", tableName)
 		    Return Not rs.AfterLastRow
 		  Catch e As DatabaseException

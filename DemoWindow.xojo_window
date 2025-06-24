@@ -553,7 +553,7 @@ Begin DesktopWindow DemoWindow
       BevelStyle      =   0
       Bold            =   False
       ButtonStyle     =   0
-      Caption         =   "DisplayPeople Table in .CSV  format"
+      Caption         =   "Save People Table in .CSV  format"
       CaptionAlignment=   3
       CaptionDelta    =   0
       CaptionPosition =   1
@@ -695,6 +695,7 @@ Begin DesktopWindow DemoWindow
       _mPanelIndex    =   0
    End
    Begin DesktopBevelButton BevelButton9
+      Active          =   False
       AllowAutoDeactivate=   True
       AllowFocus      =   True
       AllowTabStop    =   True
@@ -726,6 +727,7 @@ Begin DesktopWindow DemoWindow
       LockRight       =   False
       LockTop         =   True
       MenuStyle       =   0
+      PanelIndex      =   0
       Scope           =   0
       TabIndex        =   15
       TabPanelIndex   =   0
@@ -737,8 +739,13 @@ Begin DesktopWindow DemoWindow
       Value           =   False
       Visible         =   True
       Width           =   232
+      _mIndex         =   0
+      _mInitialParent =   ""
+      _mName          =   ""
+      _mPanelIndex    =   0
    End
    Begin DesktopBevelButton BevelButton10
+      Active          =   False
       AllowAutoDeactivate=   True
       AllowFocus      =   True
       AllowTabStop    =   True
@@ -770,6 +777,7 @@ Begin DesktopWindow DemoWindow
       LockRight       =   False
       LockTop         =   True
       MenuStyle       =   0
+      PanelIndex      =   0
       Scope           =   0
       TabIndex        =   16
       TabPanelIndex   =   0
@@ -781,8 +789,13 @@ Begin DesktopWindow DemoWindow
       Value           =   False
       Visible         =   True
       Width           =   232
+      _mIndex         =   0
+      _mInitialParent =   ""
+      _mName          =   ""
+      _mPanelIndex    =   0
    End
    Begin DesktopBevelButton BevelButton11
+      Active          =   False
       AllowAutoDeactivate=   True
       AllowFocus      =   True
       AllowTabStop    =   True
@@ -814,6 +827,7 @@ Begin DesktopWindow DemoWindow
       LockRight       =   False
       LockTop         =   True
       MenuStyle       =   0
+      PanelIndex      =   0
       Scope           =   0
       TabIndex        =   17
       TabPanelIndex   =   0
@@ -825,6 +839,10 @@ Begin DesktopWindow DemoWindow
       Value           =   False
       Visible         =   True
       Width           =   232
+      _mIndex         =   0
+      _mInitialParent =   ""
+      _mName          =   ""
+      _mPanelIndex    =   0
    End
    Begin DesktopTextField RecordTextField
       AllowAutoDeactivate=   True
@@ -1005,10 +1023,15 @@ End
 		  changes.Value("name") = nameTextField.Text
 		  
 		  ' Update the person with ID = 1
-		  If App.Manager.UpdateSingleRecord("People", changes, "ID", RecordTextField.text) Then
-		    MessageBox("✅ Person updated")
+		  If  RecordTextField.Text.Trim <> "" Then
+		    If App.Manager.UpdateSingleRecord("People", changes, "ID", RecordTextField.Text) Then
+		      MessageBox("✅ Person updated")
+		    Else
+		      MessageBox("❌ Update failed")
+		    End If
 		  Else
-		    MessageBox("❌ Update failed")
+		    MessageBox("Please enter a record number")
+		    RecordTextField.SetFocus
 		  End If
 		End Sub
 	#tag EndEvent
@@ -1017,13 +1040,12 @@ End
 	#tag Event
 		Sub Pressed()
 		  
-		  Var csv As String
-		  csv = App.Manager.ExportTableAsCSV("People")
-		  if csv.trim = "" then
-		    MessageBox("✅ CSV successfully exported."+ EndOfLine+ csv)
-		  Else
-		    MessageBox("❌ CSV export failed.")
-		  End If
+		  If App.manager.ExportAndSaveCSV("People") Then
+		    LogMessage("People Table Data saved to a .CSV file")
+		  end if
+		  
+		  
+		  
 		  
 		End Sub
 	#tag EndEvent
@@ -1033,7 +1055,13 @@ End
 		Sub Pressed()
 		  
 		  Var csv As String = App.manager.ExportTableAsCSV("People")
-		  MessageBox(csv)
+		  
+		  If csv.Trim = "" Then
+		    MessageBox("❌ CSV export failed.")
+		  Else
+		    MessageBox("✅ CSV successfully exported."+ EndOfLine+ csv)
+		  End If
+		  
 		  
 		End Sub
 	#tag EndEvent
@@ -1051,12 +1079,18 @@ End
 #tag Events BevelButton9
 	#tag Event
 		Sub Pressed()
-		  Var rs As rowset
-		  rs =App.manager.GetRowSet("People","ID = " + RecordTextField.text)
-		  nameTextField.Text = rs.Column("name")
-		  ageTextField.Text = rs.Column("age")
-		  emailTextField.Text = rs.Column("email")
-		  Logmessage("Rowset obtained for ID number 1")
+		  If  RecordTextField.Text.Trim <> "" Then
+		    Var rs As rowset
+		    rs =App.manager.GetRowSet("People","ID = " + RecordTextField.text)
+		    nameTextField.Text = rs.Column("name")
+		    ageTextField.Text = rs.Column("age")
+		    emailTextField.Text = rs.Column("email")
+		    Logmessage("Rowset obtained for ID number 1")
+		    
+		  Else
+		    MessageBox("Please enter a record number")
+		    RecordTextField.SetFocus
+		  End If
 		  
 		End Sub
 	#tag EndEvent
@@ -1076,25 +1110,37 @@ End
 	#tag Event
 		Sub Pressed()
 		  
-		  
-		  ' Step 1: Define the WHERE clause (using a placeholder ?)
-		  Var whereClause As String = "ID = ?"
-		  
-		  ' Step 2: Create the values array for the WHERE clause
-		  Var whereValues() As Variant
-		  whereValues.Add(RecordTextField.Text) ' We're looking to delete the person with ID = equal to what is in the text field
-		  
-		  ' Step 3: Optionally check if the record exists before attempting to delete
-		  If App.manager.RecordExists("People", whereClause, whereValues) Then
-		    ' Step 4: Call DeleteRecord only if a match exists
-		    If App.manager.DeleteRecord("People", whereClause, whereValues) Then
-		      MessageBox("✅ Person with ID 3 was deleted.")
+		  If  RecordTextField.Text.Trim <> "" Then
+		    ' Step 1: Define the WHERE clause (using a placeholder ?)
+		    Var whereClause As String = "ID = ?"
+		    
+		    ' Step 2: Create the values array for the WHERE clause
+		    Var whereValues() As Variant
+		    whereValues.Add(RecordTextField.Text) ' We're looking to delete the person with ID = equal to what is in the text field
+		    
+		    ' Step 3: Optionally check if the record exists before attempting to delete
+		    If App.manager.RecordExists("People", whereClause, whereValues) Then
+		      ' Step 4: Call DeleteRecord only if a match exists
+		      If App.manager.DeleteRecord("People", whereClause, whereValues) Then
+		        MessageBox("✅ Person with ID 3 was deleted.")
+		      Else
+		        MessageBox("❌ Something went wrong while deleting.")
+		      End If
 		    Else
-		      MessageBox("❌ Something went wrong while deleting.")
+		      MessageBox("⚠️ No person with ID  found.")
 		    End If
+		    
+		    
 		  Else
-		    MessageBox("⚠️ No person with ID 3 found.")
+		    MessageBox("Please enter a record number")
+		    RecordTextField.SetFocus
 		  End If
+		  
+		  
+		  
+		  
+		  
+		  
 		End Sub
 	#tag EndEvent
 #tag EndEvents
