@@ -1,144 +1,157 @@
-# SQLiteManager for Xojo
+# SQLiteFunctions
 
-## 📦 Overview
+## Project Overview
 
-`SQLiteManager` is a robust, cross-platform Xojo class for managing SQLite databases. It simplifies common database operations with an easy-to-use API, and works seamlessly on:
+This Xojo project contains the following components:
 
-- ✅ iOS
-- ✅ macOS
-- ✅ Windows
-- ✅ Linux
-- ✅ Android (Xojo 2024r2+)
+### Project Components
 
-## ✨ Features
+- **Classes:** 2 (App, SQLiteManagerClass)
+- **Modules:** 1 (lobalPropertiesAndMethods)
+- **Menus:** 1 (MainMenuBar)
 
-- Create or open SQLite database files
-- Platform-aware default storage paths
-- Override database path manually
-- Create tables (only if not already existing)
-- Insert, update, delete records
-- Add columns to existing tables
-- Check if a table exists
-- Count rows with or without conditions
-- Fetch records as `RowSet`
-- Export tables to:
-  - JSON (`ExportTableAsJSON`)
-  - CSV (`ExportTableAsCSV`)
+## Classes
 
-## ⚙️ Platform Support
+### App
 
-| Platform   | Supported | Notes |
-|------------|-----------|-------|
-| iOS        | ✅         | Uses `ApplicationData` folder |
-| macOS      | ✅         | Uses `ApplicationData` folder |
-| Windows    | ✅         | Uses `ApplicationData` folder |
-| Linux      | ✅         | Uses `ApplicationData` folder |
-| Android    | ✅         | Uses `Documents` folder |
-| Web        | ❌         | Local file storage not supported in Xojo Web |
+#### Properties
 
-## 📁 Installation
+- **`Manager`** Public SQLiteManagerClass
 
+- **`kEditClear`** Public String
 
+- **`kFileQuit`** Public String
 
-## 🚀 Usage
+- **`kFileQuitShortcut`** Public String
 
-### Initialize and Create a Database
+#### Methods
 
-```xojo
-Var manager As New SQLiteManager
+- **`Opening`** Public Sub
+  - **Signature:** `Public Sub Opening()`
 
-// Optional: override database location
-'manager.SetDatabaseFile(SpecialFolder.Documents.Child("custom.sqlite"))
+#### Events
 
-If manager.CreateDatabase("myapp.sqlite") Then
-  MessageBox("✅ Database ready!")
-End If
-```
+None
 
-### Create a Table
+---
 
-```xojo
-manager.CreateTableIfNotExists("People", _
-  "id INTEGER PRIMARY KEY, name TEXT, age INTEGER")
-```
+### SQLiteManagerClass
 
-### Insert a Record
+#### Properties
 
-```xojo
-Var person As New Dictionary
-person.Value("name") = "Alice"
-person.Value("age") = 35
+- **`db`** Private SQLiteDatabase
 
-manager.InsertRecord("People", person)
-```
+- **`dbFile`** Private FolderItem
 
-### Update a Record
+#### Methods
 
-```xojo
-Var updateData As New Dictionary
-updateData.Value("age") = 36
+- **`AddColumn`** Public Function
+  - **Parameters:** `tableName As String, columnDef As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function AddColumn(tableName As String, columnDef As String) As Boolean`
 
-manager.UpdateRecord("People", updateData, "name = ?", Array("Alice"))
-```
+- **`Connect`** Public Function
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function Connect() As Boolean`
 
-### Delete a Record
+- **`Constructor`** Public Constructor
+  - **Signature:** `Public Constructor()`
 
-```xojo
-manager.DeleteRecord("People", "name = ?", Array("Alice"))
-```
+- **`CountRecords`** Public Function
+  - **Parameters:** `tableName As String, whereClause As String = "", whereValues() As Variant = Nil`
+  - **Returns:** `Integer`
+  - **Signature:** `Public Function CountRecords(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As Integer`
 
-### Add a Column
+- **`CreateDatabase`** Public Function
+  - **Parameters:** `dbName As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function CreateDatabase(dbName As String) As Boolean`
 
-```xojo
-manager.AddColumn("People", "email TEXT")
-```
+- **`CreateTableIfNotExists`** Public Function
+  - **Parameters:** `tableName As String, fieldDefs As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function CreateTableIfNotExists(tableName As String, fieldDefs As String) As Boolean`
 
-### Count Records
+- **`DeleteRecord`** Public Function
+  - **Parameters:** `tableName As String, whereClause As String, whereValues() As Variant`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function DeleteRecord(tableName As String, whereClause As String, whereValues() As Variant) As Boolean`
 
-```xojo
-Var total As Integer = manager.CountRecords("People")
-```
+- **`DropTable`** Public Function
+  - **Parameters:** `tableName As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function DropTable(tableName As String) As Boolean`
 
-### Export Table to JSON
+- **`ExportAndSaveCSV`** Public Function
+  - **Parameters:** `tableName As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function ExportAndSaveCSV(tableName As String) As Boolean`
 
-```xojo
-Var json As String = manager.ExportTableAsJSON("People")
-```
+- **`ExportTableAsCSV`** Public Function
+  - **Parameters:** `tableName As String`
+  - **Returns:** `String`
+  - **Signature:** `Public Function ExportTableAsCSV(tableName As String) As String`
 
-### Export Table to CSV
+- **`ExportTableAsJSON`** Public Function
+  - **Parameters:** `tableName As String`
+  - **Returns:** `String`
+  - **Signature:** `Public Function ExportTableAsJSON(tableName As String) As String`
 
-```xojo
-Var csv As String = manager.ExportTableAsCSV("People")
-```
+- **`GetRowSet`** Public Function
+  - **Parameters:** `tableName As String, whereClause As String = "", whereValues() As Variant = Nil`
+  - **Returns:** `RowSet`
+  - **Signature:** `Public Function GetRowSet(tableName As String, whereClause As String = "", whereValues() As Variant = Nil) As RowSet`
 
-## 📚 Class API Summary
+- **`InsertRecord`** Public Function
+  - **Parameters:** `tableName As String, data As Dictionary`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function InsertRecord(tableName As String, data As Dictionary) As Boolean`
 
-| Method                        | Description |
-|------------------------------|-------------|
-| `CreateDatabase(name)`       | Opens or creates a SQLite DB file |
-| `SetDatabaseFile(file)`      | Sets a custom database `FolderItem` |
-| `CreateTableIfNotExists()`   | Safe table creation |
-| `InsertRecord()`             | Insert row from `Dictionary` |
-| `UpdateRecord()`             | Update rows by condition |
-| `DeleteRecord()`             | Delete rows by condition |
-| `DropTable()`                | Delete entire table |
-| `AddColumn()`                | Add column to table |
-| `GetRowSet()`                | Select query as `RowSet` |
-| `TableExists()`              | Check if table exists |
-| `CountRecords()`             | Return row count |
-| `ExportTableAsJSON()`        | Export all rows to JSON |
-| `ExportTableAsCSV()`         | Export all rows to CSV |
+- **`RecordExists`** Public Function
+  - **Parameters:** `tableName As String, whereClause As String, whereValues() As Variant`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function RecordExists(tableName As String, whereClause As String, whereValues() As Variant) As Boolean`
 
-## 🛠 Requirements
+- **`TableExists`** Public Function
+  - **Parameters:** `tableName As String`
+  - **Returns:** `Boolean`
+  - **Signature:** `Public Function TableExists(tableName As String) As Boolean`
 
-- ✅ Xojo 2021r3 or later (2025r1+ recommended for Android)
-- ✅ SQLite is built-in — no plugins required
-- ❌ Not designed for Web projects
+- **`UpdateSingleRecord`** Public Function
+  - **Parameters:** `tableName As String, data As Dictionary, whereColumn As String, whereValue As String`
+  - **Returns:** `boolean`
+  - **Signature:** `Public Function UpdateSingleRecord(tableName As String, data As Dictionary, whereColumn As String, whereValue As String) As boolean`
 
-## 📄 License
+#### Events
 
-MIT License (or use freely for any purpose)
+None
 
-## 🙋 Support
+---
 
-For feedback or suggestions, feel free to open a GitHub issue or contact the author.
+## Requirements
+
+- **Xojo:** Latest compatible version
+
+## Installation
+
+1. Clone or download this repository
+2. Open the `.xojo_project` file in Xojo
+3. Build and run the project
+
+## Usage
+
+[Add specific usage instructions for your application]
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+[Specify your license here]
+
+---
+*This README was automatically generated from the Xojo project file on 3 Jul 2025 at 9:28:58 am*
